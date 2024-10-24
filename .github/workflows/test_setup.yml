@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Rust with specific version
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.80.1
+
+      # Setup Scarb
+      - name: Setup Scarb
+        uses: software-mansion/setup-scarb@v1.3.2
+        with:
+          scarb-version: "2.8.4"
+
+      # Install Universal Sierra Compiler using official script
+      - name: Install Universal Sierra Compiler
+        run: |
+          curl -L https://raw.githubusercontent.com/software-mansion/universal-sierra-compiler/master/scripts/install.sh | sh
+          echo "UNIVERSAL_SIERRA_COMPILER=universal-sierra-compiler" >> $GITHUB_ENV
+      # Install Starknet Foundry
+      - name: Install Starknet Foundry
+        run: |
+          curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+          source ~/.bashrc
+          snfoundryup
+      # Initialize Scarb project
+      - name: Initialize Scarb project
+        run: |
+          scarb --version
+          scarb clean
+          scarb build
+      # Verify installations
+      - name: Verify installations
+        run: |
+          rustc --version
+          scarb --version
+          snforge --version
+          universal-sierra-compiler --version
+      # Run the tests with parallel execution
+      - name: Run Starknet Foundry tests
+        env:
+          RUST_BACKTRACE: 1
+          CAIRO_PATH: src
+        run: snforge test
